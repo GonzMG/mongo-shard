@@ -1,8 +1,8 @@
 package main
 
-import "go-sharder/mongoshard"
+import mongoshard "mongo-shard/mongo-shard"
 
 func main() {
-	c := mongoshard.NewConfiguration("127.0.0.1", "27100", "test", "main", "id", 2)
-	mongoshard.InitConnection(c)
+	conf := mongoshard.NewConfiguration("172.17.0.2", "27017", "test", "main", "id", 2, []string{"172.17.0.2:27017"})
+	mongoshard.InitCluster(conf)
 }

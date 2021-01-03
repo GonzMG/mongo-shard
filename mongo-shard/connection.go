@@ -8,12 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func InitConnection(config *Configuration) {
-
-}
-
-func newMongoClient(config *Configuration) (*mongo.Client, error) {
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + config.Host + ":" + config.Port))
+func newMongoClient(host string, port string) (*mongo.Client, error) {
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + host + ":" + port))
 	if err != nil {
 		return nil, err
 	}
