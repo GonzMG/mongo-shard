@@ -1,17 +1,15 @@
 package mongoshard
 
 import (
-	"context"
 	"log"
-	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Cluster struct {
 	masterConnection *mongo.Client
-	ctx              context.Context
-	nodes            []*node
+	router           map[int]*node
+	config           *Configuration
 }
 
 type node struct {
@@ -24,6 +22,8 @@ type node struct {
 func InitCluster(config *Configuration) *Cluster {
 	newCluster := new(Cluster)
 
+	newCluster.config = config
+
 	// initialize master connection
 	masterConn, err := newMongoClient(config.MasterHost, config.MasterPort)
 	if err != nil {
@@ -32,7 +32,7 @@ func InitCluster(config *Configuration) *Cluster {
 	newCluster.masterConnection = masterConn
 
 	// initialize nodes connections
-	newCluster.nodes = make([]*node, len(config.NodeHosts))
+	nodes := make([]*node, len(config.NodeHosts))
 	for i := range config.NodeHosts {
 		nodeConn, err := newMongoClient(config.NodeHosts[i], config.NodePorts[i])
 		if err != nil {
@@ -42,17 +42,42 @@ func InitCluster(config *Configuration) *Cluster {
 		newNode.id = i
 		newNode.connection = nodeConn
 
-		newCluster.nodes[i] = newNode
+		nodes[i] = newNode
 	}
 
-	// save the configuration
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
+	// create the router map
+	router := make(map[int]*node)
+	route(nodes, router, config.ShardedNumber)
+	newCluster.router = router
 
-	err = upsertConfiguration(ctx, config, newCluster.masterConnection)
+	// save the configuration in the specified database into config collection
+	err = upsertClusterConfiguration(config, newCluster.masterConnection)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return newCluster
+}
+
+// route fills the router specifying where will be located each sharded collection
+// distributed in the different nodes
+//
+// the router map will be completed in order, the first sharded collection will be
+// in the first node, the N sharded collection in the N node
+//
+// if the quantity of nodes is smaller than shardedQuantity, there will be nodes
+// with more than one sharded collection
+func route(nodes []*node, router map[int]*node, shardQuantity int) {
+	var idShard, nodeIndex int
+	if len(nodes) == 0 {
+		return
+	}
+	for len(router) < shardQuantity {
+		if nodeIndex == len(nodes) {
+			nodeIndex = 0
+		}
+		router[idShard] = nodes[nodeIndex]
+		idShard++
+		nodeIndex++
+	}
 }

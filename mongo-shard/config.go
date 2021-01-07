@@ -9,6 +9,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const (
+	databaseConfig   string = "cluster-config"
+	collectionConfig string = "config"
+)
+
 type Configuration struct {
 	ID             string   `bson:"id"`
 	MasterHost     string   `bson:"master_host"`
@@ -17,13 +22,12 @@ type Configuration struct {
 	NodePorts      []string `bson:"node_ports"`
 	DatabaseName   string   `bson:"database"`
 	CollectionName string   `bson:"collection"`
-	ShardedKey     string   `bson:"shared_key"`
 	ShardedNumber  int      `bson:"shared_number"`
 }
 
 // NewConfiguration creates a Configuration struct for initializing the sharding service
 func NewConfiguration(
-	host, port, databaseName, collectionName, shardedKey string,
+	host, port, databaseName, collectionName string,
 	shardedNumber int,
 	nodeIPs []string,
 ) *Configuration {
@@ -33,7 +37,6 @@ func NewConfiguration(
 	newConf.MasterPort = port
 	newConf.DatabaseName = databaseName
 	newConf.CollectionName = collectionName
-	newConf.ShardedKey = shardedKey
 	newConf.ShardedNumber = shardedNumber
 
 	newConf.NodeHosts, newConf.NodePorts = make([]string, len(nodeIPs)), make([]string, len(nodeIPs))
@@ -47,8 +50,8 @@ func NewConfiguration(
 	return newConf
 }
 
-func upsertConfiguration(ctx context.Context, config *Configuration, client *mongo.Client) error {
-	collection := client.Database(config.DatabaseName).Collection("test")
+func upsertClusterConfiguration(config *Configuration, client *mongo.Client) error {
+	collection := client.Database(databaseConfig).Collection(collectionConfig)
 
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"id": config.ID}
@@ -59,8 +62,4 @@ func upsertConfiguration(ctx context.Context, config *Configuration, client *mon
 		return err
 	}
 	return nil
-}
-
-func GetConfiguration() Configuration {
-	return Configuration{}
 }

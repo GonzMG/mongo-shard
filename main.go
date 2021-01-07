@@ -3,6 +3,6 @@ package main
 import mongoshard "mongo-shard/mongo-shard"
 
 func main() {
-	conf := mongoshard.NewConfiguration("172.17.0.2", "27017", "test", "main", "id", 2, []string{"172.17.0.2:27017"})
+	conf := mongoshard.NewConfiguration("127.0.0.1", "27017", "test", "main", 2, []string{"127.0.0.1:27017"})
 	mongoshard.InitCluster(conf)
 }
